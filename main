@@ -6,12 +6,13 @@ import time
 
 
 sagemaker_runtime = boto3.client('sagemaker-runtime', region_name='us-east-1')
+polly_client = boto3.client('polly', region_name='us-east-1')
+
 predictions = collections.deque(maxlen=100)  # Adjust the size based on your frame rate
 start_time = time.time()
 
-
 # Replace these class names with those used during your model training
-class_names = ['A', 'B', 'C']
+class_names = ['A', 'B', 'C', 'Nothing']
 
 
 # Define the preprocess_frame function
@@ -30,6 +31,8 @@ while True:
     if not ret:
         break
 
+    frame = cv2.flip(frame, 1)
+
     # Preprocess the frame
     processed_frame = preprocess_frame(frame)
 
@@ -39,7 +42,8 @@ while True:
 
     # Send the frame to SageMaker endpoint
     response = sagemaker_runtime.invoke_endpoint(
-        EndpointName='jumpstart-ftc-pt-ic-mobilenet-v2',
+        EndpointName='jumpstart-ftc-pt-ic-mobilenet-v2-1',
+        
         ContentType='application/x-image',  # Adjust as per your model's expected content type
         Body=byte_frame
     )
@@ -56,10 +60,6 @@ while True:
     # Map the index to the class name
     predicted_class = class_names[max_index]
 
-    # Print the class with the highest probability
-    print(f"Predicted class: {predicted_class} with probability: {probabilities[max_index]}")
-
-
     if time.time() - start_time >= 5:  # Check if 5 seconds have passed
         if predictions:
             # Find the most common prediction
@@ -73,6 +73,31 @@ while True:
     # More of your existing code...
     # After obtaining a prediction for the current frame:
     predictions.append(predicted_class)  # Store the prediction
+
+
+    # After determining the most common prediction
+    most_common_prediction = collections.Counter(predictions).most_common(1)[0][0]
+
+    # Call Amazon Polly to synthesize speech
+    response = polly_client.synthesize_speech(
+        Text=most_common_prediction,
+        OutputFormat='mp3',
+        VoiceId='Joanna'  # You can choose different voices
+    )
+
+    # Save the audio stream to an MP3 file
+    if "AudioStream" in response:
+        with open('speech.mp3', 'wb') as file:
+            file.write(response['AudioStream'].read())
+
+    # Play the audio file (example using a simple library like pygame)
+    import pygame
+    pygame.mixer.init()
+    pygame.mixer.music.load('speech.mp3')
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy() == True:
+        continue
+
     
 
     cv2.imshow('Frame', frame)
