@@ -44,7 +44,7 @@ while True:
 
     # Send the frame to SageMaker endpoint
     response = sagemaker_runtime.invoke_endpoint(
-        EndpointName='jumpstart-ftc-pt-ic-mobilenet-v2-1',
+        EndpointName='jumpstart-ftc-tf-ic-swin-base-patch4-window7-224',
         ContentType='application/x-image',
         Body=byte_frame
     )
