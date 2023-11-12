@@ -11,7 +11,7 @@ start_time = time.time()
 
 
 # Replace these class names with those used during your model training
-class_names = ['N', 'Nothing', 'O', 'P', 'Q', 'R', 'S', 'Space', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+class_names = ['A', 'B', 'C']
 
 
 # Define the preprocess_frame function
