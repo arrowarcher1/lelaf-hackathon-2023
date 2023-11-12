@@ -6,11 +6,9 @@ t.penup()
 t.goto(-30,-50) #centering in the screen
 t.pensize(10)
 t.pencolor("black")
-x = 0
-lett = ''
-#t.hideturtle()
-while x == 0:
-    lett = input()
+t.hideturtle()
+
+def letter_draw(lett)
     t.clear()
     t.goto(-30,50)
     t.right(t.towards(0,50))
