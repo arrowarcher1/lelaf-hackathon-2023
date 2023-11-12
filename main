@@ -1,0 +1,83 @@
+import cv2
+import boto3
+import json
+import collections
+import time
+
+
+sagemaker_runtime = boto3.client('sagemaker-runtime', region_name='us-east-1')
+predictions = collections.deque(maxlen=100)  # Adjust the size based on your frame rate
+start_time = time.time()
+
+
+# Replace these class names with those used during your model training
+class_names = ['N', 'Nothing', 'O', 'P', 'Q', 'R', 'S', 'Space', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
+
+# Define the preprocess_frame function
+def preprocess_frame(frame):
+    # Add preprocessing steps here
+    # Example: resize
+    processed_frame = cv2.resize(frame, (224, 224))
+    return processed_frame
+
+
+# Initialize the webcam
+cap = cv2.VideoCapture(0)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Preprocess the frame
+    processed_frame = preprocess_frame(frame)
+
+    # Convert the frame to the required format (e.g., byte array)
+    _, buffer = cv2.imencode('.jpg', processed_frame)
+    byte_frame = buffer.tobytes()
+
+    # Send the frame to SageMaker endpoint
+    response = sagemaker_runtime.invoke_endpoint(
+        EndpointName='jumpstart-ftc-pt-ic-mobilenet-v2',
+        ContentType='application/x-image',  # Adjust as per your model's expected content type
+        Body=byte_frame
+    )
+    
+    # Parse the response
+    result = json.loads(response['Body'].read().decode())
+
+    # Extract probabilities from the response
+    probabilities = result.get('probabilities', [])
+
+    # Find the index of the max probability
+    max_index = probabilities.index(max(probabilities))
+
+    # Map the index to the class name
+    predicted_class = class_names[max_index]
+
+    # Print the class with the highest probability
+    print(f"Predicted class: {predicted_class} with probability: {probabilities[max_index]}")
+
+
+    if time.time() - start_time >= 5:  # Check if 5 seconds have passed
+        if predictions:
+            # Find the most common prediction
+            most_common_prediction = collections.Counter(predictions).most_common(1)[0][0]
+            print(f"Most common prediction in the last 5 seconds: {most_common_prediction}")
+
+        # Reset the timer and predictions
+        start_time = time.time()
+        predictions.clear()
+
+    # More of your existing code...
+    # After obtaining a prediction for the current frame:
+    predictions.append(predicted_class)  # Store the prediction
+    
+
+    cv2.imshow('Frame', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
